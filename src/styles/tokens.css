@@ -1,0 +1,31 @@
+/*
+  Ported verbatim from the approved Claude Design mockup (Direction C — warm/light theme).
+  https://claude.ai/code/artifact/9a2aa898-1a41-49b8-b82a-3d150527f326
+  Do not revert to v1's dark palette — that was explicitly rejected.
+*/
+:root {
+  --bg: oklch(97.8% 0.012 75);
+  --surface: oklch(99.5% 0.005 75);
+  --border: oklch(90% 0.015 75);
+  --text-1: oklch(26% 0.02 50);
+  --text-2: oklch(48% 0.02 50);
+  --text-3: oklch(63% 0.015 60);
+
+  --accent-strong: oklch(58% 0.15 45);
+  --accent-tint: oklch(94% 0.04 55);
+
+  --positive: oklch(55% 0.13 155);
+  --positive-tint: oklch(94% 0.05 155);
+  --negative: oklch(58% 0.17 25);
+  --negative-tint: oklch(94% 0.05 25);
+  --blue: oklch(58% 0.13 230);
+  --blue-tint: oklch(94% 0.04 230);
+  --purple: oklch(55% 0.15 300);
+  --purple-tint: oklch(94% 0.04 300);
+  --amber: oklch(72% 0.14 85);
+  --amber-tint: oklch(94% 0.05 85);
+  --muted-slice: oklch(88% 0.008 75);
+
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
