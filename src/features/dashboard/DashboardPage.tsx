@@ -18,7 +18,7 @@ export function DashboardPage() {
           </>
         }
       />
-      <div className="flex flex-col gap-5 p-[26px_38px_38px]">
+      <div className="flex flex-col gap-5 p-4 sm:p-[26px_38px_38px]">
         <StatRow />
         <ModelRow />
         <OpsGrid />

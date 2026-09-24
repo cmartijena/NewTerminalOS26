@@ -159,7 +159,7 @@ export function MapaPage() {
           </div>
         </Card>
 
-        <Card className="h-[420px] flex-1 overflow-hidden p-0 lg:h-[640px]">
+        <Card className="h-[420px] flex-none overflow-hidden p-0 lg:h-[640px] lg:flex-1">
           {isLoading ? (
             <Skeleton className="h-full w-full rounded-none" />
           ) : isError ? (

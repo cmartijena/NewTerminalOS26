@@ -94,7 +94,7 @@ export function AsignarMultipleDialog({ terminales, trigger, onSubmitted }: Prop
             <span className="font-mono text-[12px]">{terminales.map((t) => t.codigo).join(", ")}</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <Label htmlFor="am-empresa">Empresa</Label>
               <Select

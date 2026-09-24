@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { ROL_LABEL, type Rol } from "@/auth/types";
@@ -176,13 +176,26 @@ const SECTIONS: SectionDef[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  // Mobile drawer state — irrelevant at lg+ where the sidebar is always visible in flow
+  // (see the className below: fixed+translate only applies below lg).
+  mobileOpen: boolean;
+  onCloseMobile: () => void;
+}
+
+export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const { currentUser, logout } = useAuth();
   const rol = currentUser?.rol;
   const sections = SECTIONS.filter((s) => !rol || !s.hiddenForRoles?.includes(rol));
 
   return (
-    <aside className="flex w-[272px] flex-none flex-col border-r border-border bg-surface p-[18px]">
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex w-[272px] flex-none flex-col overflow-y-auto border-r border-border bg-surface p-[18px] transition-transform duration-200 ease-out",
+        "lg:static lg:z-auto lg:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+      )}
+    >
       <div className="mb-[26px] flex items-center gap-[11px] px-2">
         <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-xl bg-accent">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
@@ -192,6 +205,14 @@ export function Sidebar() {
           </svg>
         </div>
         <span className="text-[17px] font-extrabold text-t1">TerminalOS</span>
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          aria-label="Cerrar menú"
+          className="ml-auto flex h-8 w-8 flex-none items-center justify-center rounded-full text-t3 hover:bg-bg lg:hidden"
+        >
+          <X size={17} />
+        </button>
       </div>
       <nav className="flex flex-1 flex-col gap-1">
         {sections.map((section) =>

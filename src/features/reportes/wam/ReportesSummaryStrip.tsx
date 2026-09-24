@@ -20,7 +20,7 @@ interface CellProps {
 
 function Cell({ label, value, color }: CellProps) {
   return (
-    <div className="flex-1 border-r border-border p-[12px_16px] last:border-r-0">
+    <div className="min-w-[140px] flex-1 border-r border-border p-[12px_16px] last:border-r-0">
       <div className="text-[9.5px] font-bold uppercase tracking-wide text-t3">{label}</div>
       <div className={`mt-0.5 truncate font-mono text-[15px] font-bold ${color ?? "text-t1"}`}>{value}</div>
     </div>
