@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { LogOut, X } from "lucide-react";
+import { LogOut, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { ROL_LABEL, type Rol } from "@/auth/types";
@@ -183,20 +184,43 @@ interface SidebarProps {
   onCloseMobile: () => void;
 }
 
+const COLLAPSED_KEY = "terminalos_v2_sidebar_collapsed";
+
 export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const { currentUser, logout } = useAuth();
   const rol = currentUser?.rol;
   const sections = SECTIONS.filter((s) => !rol || !s.hiddenForRoles?.includes(rol));
 
+  // Desktop-only icon-rail mode — irrelevant on mobile, where the sidebar is a full-width
+  // drawer instead (collapsing it to icons there wouldn't save any useful space). Persisted
+  // so the choice survives a reload; wrapped in try/catch like every other localStorage
+  // read in this app (private windows / blocked storage shouldn't crash the sidebar).
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+    } catch {
+      // ignore — same posture as the read above
+    }
+  }, [collapsed]);
+
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-[272px] flex-none flex-col overflow-y-auto border-r border-border bg-surface p-[18px] transition-transform duration-200 ease-out",
+        "fixed inset-y-0 left-0 z-50 flex w-[272px] flex-none flex-col overflow-y-auto border-r border-border bg-surface p-[18px] transition-[transform,width] duration-200 ease-out",
         "lg:static lg:z-auto lg:translate-x-0",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
+        collapsed && "lg:w-[84px] lg:px-2.5",
       )}
     >
-      <div className="mb-[26px] flex items-center gap-[11px] px-2">
+      <div className={cn("mb-[26px] flex items-center gap-[11px] px-2", collapsed && "lg:justify-center lg:px-0")}>
         <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-xl bg-accent">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
             <path d="M4 7h16" />
@@ -204,7 +228,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
             <path d="M4 17h16" />
           </svg>
         </div>
-        <span className="text-[17px] font-extrabold text-t1">TerminalOS</span>
+        <span className={cn("text-[17px] font-extrabold text-t1", collapsed && "lg:hidden")}>TerminalOS</span>
         <button
           type="button"
           onClick={onCloseMobile}
@@ -214,6 +238,20 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
           <X size={17} />
         </button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        title={collapsed ? "Expandir menú" : "Colapsar menú"}
+        className={cn(
+          "mb-3 hidden flex-none items-center gap-[13px] rounded-full px-4 py-2 text-t3 hover:bg-bg lg:flex",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        {!collapsed && <span className="text-[12.5px] font-semibold">Colapsar menú</span>}
+      </button>
+
       <nav className="flex flex-1 flex-col gap-1">
         {sections.map((section) =>
           section.enabled ? (
@@ -221,35 +259,48 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
               key={section.path}
               to={section.path}
               end={section.path === "/"}
+              title={collapsed ? section.label : undefined}
               className={({ isActive }) =>
                 cn(
-                  "flex items-center gap-[13px] rounded-full px-4 py-[11px] text-sm font-medium text-t2 [&_svg]:h-[19px] [&_svg]:w-[19px] [&_svg]:text-t3",
+                  "flex items-center gap-[13px] rounded-full px-4 py-[11px] text-sm font-medium text-t2 [&_svg]:h-[19px] [&_svg]:w-[19px] [&_svg]:flex-none [&_svg]:text-t3",
                   isActive && "bg-accent font-bold text-white [&_svg]:text-white",
+                  collapsed && "lg:justify-center lg:px-0",
                 )
               }
             >
               {section.icon}
-              <span>{section.label}</span>
+              <span className={cn(collapsed && "lg:hidden")}>{section.label}</span>
             </NavLink>
           ) : (
             <span
               key={section.path}
-              className="flex cursor-not-allowed items-center gap-[13px] rounded-full px-4 py-[11px] text-sm font-medium text-t3 [&_svg]:h-[19px] [&_svg]:w-[19px] [&_svg]:text-t3"
-              title="Próximamente"
+              title={collapsed ? section.label : "Próximamente"}
+              className={cn(
+                "flex cursor-not-allowed items-center gap-[13px] rounded-full px-4 py-[11px] text-sm font-medium text-t3 [&_svg]:h-[19px] [&_svg]:w-[19px] [&_svg]:flex-none [&_svg]:text-t3",
+                collapsed && "lg:justify-center lg:px-0",
+              )}
             >
               {section.icon}
-              <span>{section.label}</span>
+              <span className={cn(collapsed && "lg:hidden")}>{section.label}</span>
             </span>
           ),
         )}
       </nav>
 
       {currentUser && (
-        <div className="flex items-center gap-2.5 border-t border-border px-2 pt-3">
-          <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-accent-tint text-sm font-bold text-accent">
+        <div
+          className={cn(
+            "flex items-center gap-2.5 border-t border-border px-2 pt-3",
+            collapsed && "lg:flex-col lg:justify-center lg:gap-2 lg:px-0",
+          )}
+        >
+          <div
+            title={collapsed ? `${currentUser.nombre} · ${ROL_LABEL[currentUser.rol]}` : undefined}
+            className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-accent-tint text-sm font-bold text-accent"
+          >
             {currentUser.nombre[0]?.toUpperCase()}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className={cn("min-w-0 flex-1", collapsed && "lg:hidden")}>
             <div className="truncate text-[13px] font-semibold text-t1">{currentUser.nombre}</div>
             <div className="truncate text-[11px] text-t3">{ROL_LABEL[currentUser.rol]}</div>
           </div>
