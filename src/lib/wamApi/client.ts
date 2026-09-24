@@ -8,6 +8,9 @@ interface WamFetchOptions {
   // /api/reporte/por_juego and /api/reporte/debug_juegos only accept ?secret=, not the
   // X-API-Secret header — a real quirk in the deployed backend, not an oversight here.
   useQuerySecret?: boolean;
+  // Only the WAM write endpoints (see wamWrite.ts) use POST + a JSON body.
+  method?: "GET" | "POST";
+  body?: unknown;
 }
 
 export async function wamFetch<T>(path: string, options: WamFetchOptions = {}): Promise<T> {
@@ -26,8 +29,12 @@ export async function wamFetch<T>(path: string, options: WamFetchOptions = {}): 
     url.searchParams.set("secret", SECRET ?? "");
   }
 
+  const headers: Record<string, string> = options.useQuerySecret ? {} : { "X-API-Secret": SECRET ?? "" };
+  if (options.body !== undefined) headers["Content-Type"] = "application/json";
   const res = await fetch(url, {
-    headers: options.useQuerySecret ? {} : { "X-API-Secret": SECRET ?? "" },
+    method: options.method ?? "GET",
+    headers,
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
 
   const body = await res.json().catch(() => null);

@@ -14,6 +14,8 @@ import { uploadAgenciaFoto } from "@/lib/supabase/storage";
 import { EstadoPill } from "@/components/domain/EstadoPill";
 import { useTerminales } from "@/features/terminales/hooks/useTerminales";
 import { useBulkAsignarAgencia } from "@/features/terminales/hooks/useTerminalMutations";
+import { sincronizarAgenciaEnWam } from "@/lib/wamApi/wamWrite";
+import { WAM_SYNC_INICIAL, WamSyncSection, type WamSyncState } from "./WamSyncSection";
 import {
   useCreateAgencia,
   useSetAgenciaFoto,
@@ -203,6 +205,9 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
   // (index.html ~line 1848-1859, filterCaTerminales()/caTermToggle()).
   const [terminalSearch, setTerminalSearch] = useState("");
   const [selectedTerminalIds, setSelectedTerminalIds] = useState<Set<string>>(new Set());
+  // Create mode only: mirror the new agencia into WAM (see WamSyncSection).
+  const [wamSync, setWamSync] = useState<WamSyncState>(WAM_SYNC_INICIAL);
+  const [wamSyncing, setWamSyncing] = useState(false);
 
   const { data: empresas } = useEmpresas();
   const { data: allAgencias } = useAgencias();
@@ -211,7 +216,7 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
   const updateAgencia = useUpdateAgencia();
   const setAgenciaFoto = useSetAgenciaFoto();
   const bulkAsignarAgencia = useBulkAsignarAgencia();
-  const isPending = createAgencia.isPending || updateAgencia.isPending || uploadingFoto;
+  const isPending = createAgencia.isPending || updateAgencia.isPending || uploadingFoto || wamSyncing;
 
   useEffect(() => {
     if (open) {
@@ -234,6 +239,8 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
       setUploadingFoto(false);
       setTerminalSearch("");
       setSelectedTerminalIds(new Set());
+      setWamSync(WAM_SYNC_INICIAL);
+      setWamSyncing(false);
     }
   }, [open, agencia]);
 
@@ -496,6 +503,32 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
         agenciaId,
         estado: values.estado === "EN PRODUCCION" ? "EN PRODUCCION" : "ASIGNADO",
       });
+    }
+
+    // WAM mirror — always AFTER our own database is fully done, and never rolls it back:
+    // the agencia (and its terminales) already exist here whatever happens in WAM.
+    if (!agencia && wamSync.enabled) {
+      const grupo =
+        wamSync.grupo === "__nuevo"
+          ? ({ tipo: "nuevo", nombre: wamSync.nombreNuevo.trim() } as const)
+          : wamSync.grupo
+            ? ({ tipo: "existente", id: wamSync.grupo } as const)
+            : null;
+      if (!grupo || (grupo.tipo === "nuevo" && !grupo.nombre) || !values.pos.trim()) {
+        window.alert("La agencia se creó, pero NO se creó en WAM: falta el POS Group o el nombre POS.");
+      } else {
+        setWamSyncing(true);
+        const machineIds = (terminales ?? []).filter((t) => selectedTerminalIds.has(t.id)).map((t) => t.codigo);
+        const res = await sincronizarAgenciaEnWam({ posName: values.pos.trim(), grupo, machineIds });
+        setWamSyncing(false);
+        if (!res.ok) {
+          window.alert(
+            "La agencia se creó en TerminalOS, pero WAM tuvo problemas:\n\n" +
+              res.errores.join("\n") +
+              (res.pasos.length ? "\n\nSí se hizo en WAM:\n" + res.pasos.join("\n") : ""),
+          );
+        }
+      }
     }
 
     setOpen(false);
@@ -1009,6 +1042,16 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
                     ))
                   )}
                 </div>
+                <WamSyncSection
+                  open={open}
+                  empresaNombre={empresas?.find((e) => e.id === form.empresa_id)?.nombre ?? ""}
+                  departamento={form.departamento}
+                  siblingNombres={(allAgencias ?? [])
+                    .filter((a) => a.empresa_id === form.empresa_id && (a.departamento ?? "") === form.departamento)
+                    .map((a) => a.nombre)}
+                  value={wamSync}
+                  onChange={setWamSync}
+                />
               </div>
             )}
           </div>
@@ -1018,7 +1061,7 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
               Cancelar
             </Button>
             <Button type="submit" variant="primary" disabled={isPending}>
-              {uploadingFoto ? "Subiendo foto..." : isPending ? "Guardando..." : "Guardar"}
+              {uploadingFoto ? "Subiendo foto..." : wamSyncing ? "Creando en WAM..." : isPending ? "Guardando..." : "Guardar"}
             </Button>
           </div>
         </form>
