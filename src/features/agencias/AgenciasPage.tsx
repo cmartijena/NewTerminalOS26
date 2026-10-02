@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
 import { Pagination } from "@/components/ui/Pagination";
 import { useAuth } from "@/auth/AuthContext";
-import { canModify } from "@/auth/permissions";
+import { canModifyAgencias } from "@/auth/permissions";
 import { useVisibleAgencias } from "@/auth/useVisibleAgencias";
 import { useVisibleEmpresas } from "@/auth/useVisibleEmpresas";
 import { useTerminales, type TerminalListItem } from "@/features/terminales/hooks/useTerminales";
@@ -25,7 +25,7 @@ const RESERVED_BELOW_TABLE_TOP = 132;
 
 export function AgenciasPage() {
   const { currentUser } = useAuth();
-  const canEdit = canModify(currentUser?.rol);
+  const canEdit = canModifyAgencias(currentUser?.rol);
 
   const { data: agencias, isLoading, isError } = useVisibleAgencias();
   const { data: empresas } = useVisibleEmpresas();

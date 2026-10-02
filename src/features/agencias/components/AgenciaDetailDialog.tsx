@@ -1,8 +1,12 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/Dialog";
 import { AgenciasMap } from "@/components/map/AgenciasMap";
 import { AgenciaEstadoPill } from "@/components/domain/AgenciaEstadoPill";
 import { EstadoPill } from "@/components/domain/EstadoPill";
+import { CopyButton } from "@/components/ui/CopyButton";
+import { useAuth } from "@/auth/AuthContext";
+import { canViewAgenciaCredenciales } from "@/auth/permissions";
 import type { AgenciaRow } from "@/lib/supabase/types";
 import type { TerminalListItem } from "@/features/terminales/hooks/useTerminales";
 import { localNumberFromPos } from "@/utils/agencia";
@@ -26,6 +30,10 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
 }
 
 export function AgenciaDetailDialog({ agencia, empresaNombre, terminalesCount, terminales, trigger }: Props) {
+  const { currentUser } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const showCredenciales = canViewAgenciaCredenciales(currentUser?.rol);
+
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -63,6 +71,41 @@ export function AgenciaDetailDialog({ agencia, empresaNombre, terminalesCount, t
               <Field label="Fecha pausa" value={formatFecha(agencia.fecha_pausa)} />
               <Field label="Fecha dada de baja" value={formatFecha(agencia.fecha_baja)} />
             </div>
+
+            {showCredenciales && (
+              <div className="rounded-lg border border-border p-3.5">
+                <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-t3">
+                  Acceso EGM / WAM del local
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <Field label="Usuario" value={agencia.usuario ?? "—"} />
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-t3">Contraseña</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-[13px] text-t1">
+                        {agencia.password ? (showPassword ? agencia.password : "••••••••") : "—"}
+                      </span>
+                      {agencia.password && (
+                        <>
+                          <button
+                            type="button"
+                            title={showPassword ? "Ocultar" : "Mostrar"}
+                            onClick={() => setShowPassword((v) => !v)}
+                            className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-t3 hover:bg-bg hover:text-t1"
+                          >
+                            {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                          </button>
+                          <CopyButton
+                            title="Copiar usuario y contraseña"
+                            text={`Usuario: ${agencia.usuario ?? ""}\nContraseña: ${agencia.password}`}
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-t3">
