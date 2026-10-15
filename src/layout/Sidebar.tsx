@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { LogOut, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { ROL_LABEL, type Rol } from "@/auth/types";
@@ -117,28 +117,14 @@ const SECTIONS: SectionDef[] = [
     ),
   },
   {
-    label: "Usuarios Sistema",
-    path: "/usuarios-sistema",
+    label: "Usuarios",
+    path: "/usuarios",
     enabled: true,
     hiddenForRoles: ["DIRECTIVO", "FRANQUICIADO", "TECNICO"],
     icon: (
       <svg {...iconProps}>
         <circle cx="12" cy="8" r="3.5" />
         <path d="M5 20c0-4 3.1-6.5 7-6.5s7 2.5 7 6.5" />
-      </svg>
-    ),
-  },
-  {
-    label: "Usuarios EGM",
-    path: "/usuarios-egm",
-    enabled: true,
-    hiddenForRoles: ["DIRECTIVO", "FRANQUICIADO", "TECNICO"],
-    icon: (
-      <svg {...iconProps}>
-        <rect x="5" y="4" width="14" height="17" rx="2" />
-        <circle cx="12" cy="10" r="2.4" />
-        <path d="M8.3 16.5c.6-2 2-3 3.7-3s3.1 1 3.7 3" />
-        <line x1="9" y1="6.2" x2="15" y2="6.2" />
       </svg>
     ),
   },
@@ -221,13 +207,24 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       )}
     >
       <div className={cn("mb-[26px] flex items-center gap-[11px] px-2", collapsed && "lg:justify-center lg:px-0")}>
-        <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-xl bg-accent">
+        {/* The logo badge doubles as the collapse toggle on desktop. On mobile the drawer
+            has its own close button, so tapping the badge there does nothing (and must not
+            flip the persisted desktop state). */}
+        <button
+          type="button"
+          onClick={() => {
+            if (window.matchMedia("(min-width: 1024px)").matches) setCollapsed((v) => !v);
+          }}
+          title={collapsed ? "Expandir menú" : "Colapsar menú"}
+          aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+          className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-xl bg-accent transition-transform hover:scale-105 active:scale-95 lg:cursor-pointer"
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]">
             <path d="M4 7h16" />
             <path d="M4 12h10" />
             <path d="M4 17h16" />
           </svg>
-        </div>
+        </button>
         <span className={cn("text-[17px] font-extrabold text-t1", collapsed && "lg:hidden")}>TerminalOS</span>
         <button
           type="button"
@@ -238,19 +235,6 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
           <X size={17} />
         </button>
       </div>
-
-      <button
-        type="button"
-        onClick={() => setCollapsed((v) => !v)}
-        title={collapsed ? "Expandir menú" : "Colapsar menú"}
-        className={cn(
-          "mb-3 hidden flex-none items-center gap-[13px] rounded-full px-4 py-2 text-t3 hover:bg-bg lg:flex",
-          collapsed && "justify-center px-0",
-        )}
-      >
-        {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-        {!collapsed && <span className="text-[12.5px] font-semibold">Colapsar menú</span>}
-      </button>
 
       <nav className="flex flex-1 flex-col gap-1">
         {sections.map((section) =>
