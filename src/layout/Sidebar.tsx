@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { LogOut, X } from "lucide-react";
+import { KeyRound, LogOut, X } from "lucide-react";
 import { cn } from "@/utils/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { ROL_LABEL, type Rol } from "@/auth/types";
+import { CambiarPasswordDialog } from "./CambiarPasswordDialog";
 
 interface SectionDef {
   label: string;
@@ -288,6 +289,17 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
             <div className="truncate text-[13px] font-semibold text-t1">{currentUser.nombre}</div>
             <div className="truncate text-[11px] text-t3">{ROL_LABEL[currentUser.rol]}</div>
           </div>
+          <CambiarPasswordDialog
+            trigger={
+              <button
+                type="button"
+                title="Cambiar mi contraseña"
+                className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-t3 hover:bg-bg hover:text-t1"
+              >
+                <KeyRound size={15} />
+              </button>
+            }
+          />
           <button
             type="button"
             title="Cerrar sesión"

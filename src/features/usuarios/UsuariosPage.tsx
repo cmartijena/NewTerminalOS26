@@ -17,6 +17,9 @@ import { localNumberFromPos, localNumberValue } from "@/utils/agencia";
 import { cn } from "@/utils/cn";
 import type { AccesoWamRow, AgenciaRow } from "@/lib/supabase/types";
 import { AgenciaFormDialog } from "@/features/agencias/components/AgenciaFormDialog";
+import { ConfirmarAdminDialog } from "./ConfirmarAdminDialog";
+import { ActividadCuentas } from "./ActividadCuentas";
+import { verPasswordSistema } from "@/lib/supabase/logCuentas";
 import { useRegenerarPasswordAgencia, useToggleAgenciaActivo } from "@/features/agencias/hooks/useAgenciaMutations";
 import { UsuarioSistemaFormDialog } from "@/features/usuarios-sistema/components/UsuarioSistemaFormDialog";
 import { useUsuariosSistema, type UsuarioSistemaListRow } from "@/features/usuarios-sistema/hooks/useUsuariosSistema";
@@ -70,6 +73,14 @@ export function UsuariosPage() {
   const [empresaNombre, setEmpresaNombre] = useState("");
   const [page, setPage] = useState(1);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [vista, setVista] = useState<"cuentas" | "actividad">("cuentas");
+  // Passwords of Sistema accounts are write-only in the DB: seeing one means re-confirming the
+  // admin's own password (checked server-side, logged). The confirmed password is kept in
+  // memory only for 10 min so several reveals do not re-prompt, and a revealed value hides
+  // itself after 30 s.
+  const adminPwRef = useRef<{ pw: string; until: number } | null>(null);
+  const [shownSistema, setShownSistema] = useState<Record<string, string>>({});
+  const [askFor, setAskFor] = useState<UsuarioSistemaListRow | null>(null);
   const [sendingKey, setSendingKey] = useState<string | null>(null);
   const [resultByKey, setResultByKey] = useState<Record<string, "ok" | "error" | undefined>>({});
   const tableAnchorRef = useRef<HTMLDivElement>(null);
@@ -195,6 +206,40 @@ export function UsuariosPage() {
   const isLoading = sistemaQ.isLoading || wamQ.isLoading || agenciasQ.isLoading;
   const isError = sistemaQ.isError || wamQ.isError || agenciasQ.isError;
 
+  function ocultarSistema(id: string) {
+    setShownSistema((p) => {
+      const n = { ...p };
+      delete n[id];
+      return n;
+    });
+  }
+
+  async function mostrarSistema(u: UsuarioSistemaListRow, adminPw: string): Promise<boolean> {
+    const pw = await verPasswordSistema(currentUser?.usuario ?? "", adminPw, u.id);
+    if (pw === null) return false;
+    adminPwRef.current = { pw: adminPw, until: Date.now() + 10 * 60 * 1000 };
+    setShownSistema((p) => ({ ...p, [u.id]: pw }));
+    setTimeout(() => ocultarSistema(u.id), 30_000);
+    return true;
+  }
+
+  async function toggleSistema(u: UsuarioSistemaListRow) {
+    if (shownSistema[u.id] !== undefined) {
+      ocultarSistema(u.id);
+      return;
+    }
+    const cache = adminPwRef.current;
+    if (cache && cache.until > Date.now()) {
+      try {
+        if (await mostrarSistema(u, cache.pw)) return;
+      } catch (err) {
+        console.error("Ver contraseña error:", err);
+      }
+      adminPwRef.current = null;
+    }
+    setAskFor(u);
+  }
+
   function toggleReveal(key: string) {
     setRevealed((prev) => {
       const next = new Set(prev);
@@ -216,7 +261,7 @@ export function UsuariosPage() {
     try {
       if (it.tipo === "SISTEMA") {
         const password = generatePassword();
-        await regenerarSistema.mutateAsync({ id: it.u.id, password });
+        await regenerarSistema.mutateAsync({ id: it.u.id, password, nombre: it.u.nombre });
         await enviarCorreoBienvenida({ nombre: it.u.nombre, usuario: it.u.usuario, password, correo: v.correo });
       } else if (it.tipo === "LOCAL") {
         const password = generatePassword();
@@ -267,6 +312,39 @@ export function UsuariosPage() {
     { key: "WAM", label: TIPO_CHIP_LABEL.WAM, count: counts.WAM },
   ];
 
+  const vistaSwitch = (
+    <div className="flex gap-2">
+      {([
+        ["cuentas", "Cuentas"],
+        ["actividad", "Actividad"],
+      ] as const).map(([key, label]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => setVista(key)}
+          className={cn(
+            "rounded-full border px-4 py-2 text-[12.5px] font-bold transition-colors",
+            vista === key ? "border-t1 bg-t1 text-white" : "border-border bg-surface text-t2 hover:border-t3",
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (vista === "actividad") {
+    return (
+      <>
+        <PageHeader title="Usuarios" meta={<>Quién vio o cambió contraseñas</>} />
+        <div className="flex flex-col gap-4 p-[22px_16px] sm:p-[22px_38px_38px]">
+          {vistaSwitch}
+          <ActividadCuentas />
+        </div>
+      </>
+    );
+  }
+
   const iconBtn = "flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-t3 hover:bg-bg";
 
   return (
@@ -305,6 +383,7 @@ export function UsuariosPage() {
       />
 
       <div className="flex flex-col gap-4 p-[22px_16px] sm:p-[22px_38px_38px]">
+        {vistaSwitch}
         <div className="relative">
           <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-t3" />
           <input
@@ -395,7 +474,26 @@ export function UsuariosPage() {
                         <td className="whitespace-nowrap px-3 py-3 font-mono font-semibold text-blue">{v.usuario}</td>
                         <td className="whitespace-nowrap px-3 py-3">
                           {it.tipo === "SISTEMA" ? (
-                            <span className="font-mono text-[12px] text-t3">••••••••</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[12px] text-t2">
+                                {shownSistema[it.u.id] !== undefined ? shownSistema[it.u.id] : "••••••••"}
+                              </span>
+                              <button
+                                type="button"
+                                title={shownSistema[it.u.id] !== undefined ? "Ocultar" : "Ver contraseña (te pedirá confirmar la tuya)"}
+                                onClick={() => toggleSistema(it.u)}
+                                className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-t3 hover:bg-bg hover:text-t1"
+                              >
+                                {shownSistema[it.u.id] !== undefined ? <EyeOff size={13} /> : <Eye size={13} />}
+                              </button>
+                              {shownSistema[it.u.id] !== undefined && (
+                                <CopyButton
+                                  title="Copiar usuario y contraseña"
+                                  text={`Usuario: ${v.usuario}
+Contraseña: ${shownSistema[it.u.id]}`}
+                                />
+                              )}
+                            </div>
                           ) : (
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono text-[12px] text-t2">
@@ -555,6 +653,20 @@ export function UsuariosPage() {
         <p className="text-[11.5px] text-t3">
           Los usuarios de cada local se crean junto con la agencia (Agencias → Nueva agencia); aquí se editan.
         </p>
+
+        <ConfirmarAdminDialog
+          open={askFor !== null}
+          onOpenChange={(o) => {
+            if (!o) setAskFor(null);
+          }}
+          objetivoNombre={askFor?.nombre ?? ""}
+          onConfirm={async (pw) => {
+            if (!askFor) return false;
+            const ok = await mostrarSistema(askFor, pw);
+            if (ok) setAskFor(null);
+            return ok;
+          }}
+        />
       </div>
     </>
   );

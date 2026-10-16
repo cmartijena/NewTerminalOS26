@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
 import { enviarCorreoBienvenida } from "@/lib/email";
+import { useAuth } from "@/auth/AuthContext";
+import { registrarAccionCuenta } from "@/lib/supabase/logCuentas";
 import type { Rol } from "@/auth/types";
 
 function useInvalidateUsuariosSistema() {
@@ -65,6 +67,7 @@ export function useCreateUsuarioSistema() {
 }
 
 export function useUpdateUsuarioSistema() {
+  const { currentUser } = useAuth();
   const invalidate = useInvalidateUsuariosSistema();
   return useMutation({
     mutationFn: async ({
@@ -83,6 +86,15 @@ export function useUpdateUsuarioSistema() {
         .update({ ...toRow(values), ...(password ? { password } : {}) })
         .eq("id", id);
       if (error) throw new Error(error.message);
+      if (password && currentUser) {
+        await registrarAccionCuenta({
+          actor: currentUser,
+          accion: "PASSWORD_RESTABLECIDA",
+          objetivoId: id,
+          objetivoNombre: values.nombre,
+          detalle: "Editó el usuario y generó una contraseña nueva",
+        });
+      }
     },
     onSuccess: invalidate,
   });
@@ -92,11 +104,22 @@ export function useUpdateUsuarioSistema() {
 // one can never be read back to resend) and writes only that column, without touching
 // nombre/email/usuario/rol/empresas. Mirrors useRegenerarPasswordAgencia exactly.
 export function useRegenerarPasswordUsuarioSistema() {
+  const { currentUser } = useAuth();
   const invalidate = useInvalidateUsuariosSistema();
   return useMutation({
-    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+    // nombre is only used for the account log entry (who's password was reset).
+    mutationFn: async ({ id, password, nombre }: { id: string; password: string; nombre: string }) => {
       const { error } = await supabase.from("usuarios_sistema").update({ password }).eq("id", id);
       if (error) throw new Error(error.message);
+      if (currentUser) {
+        await registrarAccionCuenta({
+          actor: currentUser,
+          accion: "PASSWORD_RESTABLECIDA",
+          objetivoId: id,
+          objetivoNombre: nombre,
+          detalle: "Generó una contraseña nueva y la reenvió por correo",
+        });
+      }
     },
     onSuccess: invalidate,
   });
