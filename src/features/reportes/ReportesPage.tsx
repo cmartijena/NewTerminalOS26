@@ -27,8 +27,9 @@ import { useReporteOperador } from "./wam/useReporteOperador";
 import { normalizarFilas } from "./wam/ticketsWam";
 import { normalizarJuegos } from "./wam/rankingJuegos";
 import { normalizarActividad } from "./wam/terminalesActividad";
-import { printReport } from "./wam/printReport";
+import { printReport, type PrintSection } from "./wam/printReport";
 import { todayIso } from "./wam/peruDate";
+import { useWamScope } from "./wam/wamScope";
 
 const AREAS = [
   { key: "sistema", label: "📦 Sistema", available: true },
@@ -48,6 +49,10 @@ type AreaKey = (typeof AREAS)[number]["key"];
 // own desde/hasta state, so switching lost your selection. "Sistema" and "Terminales"
 // don't take a date range (live snapshots), so the filter simply doesn't apply to them.
 export function ReportesPage() {
+  // por_juego has no empresa field, so game rankings and the manager report (built on the
+  // whole operator) are not offered to an empresa-scoped user.
+  const { scoped } = useWamScope();
+  const areas = AREAS.filter((a) => !scoped || (a.key !== "ranking-juegos" && a.key !== "gerencial"));
   const [area, setArea] = useState<AreaKey>("sistema");
   const [desde, setDesde] = useState(todayIso());
   const [hasta, setHasta] = useState(todayIso());
@@ -127,19 +132,23 @@ export function ReportesPage() {
             .slice(0, 15)
             .map((r, i) => [i + 1, r.empresa, r.pos, formatCurrency(r.cashIn), r.spins.toLocaleString("es-PE")]),
         },
-        {
-          heading: "Ranking Juegos (top 15)",
-          columns: [
-            { label: "#", align: "right" },
-            { label: "Juego" },
-            { label: "Spins", align: "right" },
-            { label: "Gross Net", align: "right" },
-            { label: "RTP", align: "right" },
-          ],
-          rows: juegos
-            .slice(0, 15)
-            .map((r, i) => [i + 1, r.nombre, r.spins.toLocaleString("es-PE"), formatCurrency(r.grossNet), r.rtp]),
-        },
+        ...(scoped
+          ? []
+          : ([
+            {
+              heading: "Ranking Juegos (top 15)",
+              columns: [
+                { label: "#", align: "right" },
+                { label: "Juego" },
+                { label: "Spins", align: "right" },
+                { label: "Gross Net", align: "right" },
+                { label: "RTP", align: "right" },
+              ],
+              rows: juegos
+                .slice(0, 15)
+                .map((r, i) => [i + 1, r.nombre, r.spins.toLocaleString("es-PE"), formatCurrency(r.grossNet), r.rtp]),
+            },
+          ] as PrintSection[])),
         {
           heading: "Terminales — resumen de actividad",
           columns: [
@@ -180,7 +189,7 @@ export function ReportesPage() {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[190px_1fr]">
           <nav className="flex flex-row gap-1 self-start overflow-x-auto lg:flex-col lg:gap-0.5 lg:overflow-visible">
-            {AREAS.map((a) => (
+            {areas.map((a) => (
               <button
                 key={a.key}
                 type="button"

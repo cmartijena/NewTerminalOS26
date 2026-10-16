@@ -6,6 +6,7 @@ import { usePorPos } from "./usePorPos";
 import { usePorJuego } from "./usePorJuego";
 import { normalizarFilas } from "./ticketsWam";
 import { normalizarJuegos } from "./rankingJuegos";
+import { useWamScope } from "./wamScope";
 
 interface Props {
   desde: string;
@@ -32,6 +33,7 @@ function Cell({ label, value, color }: CellProps) {
 // same React Query hooks each area's own panel calls (same queryKey → same cache entry,
 // no extra network requests) so this costs nothing extra to keep mounted at all times.
 export function ReportesSummaryStrip({ desde, hasta }: Props) {
+  const { scoped } = useWamScope();
   const operador = useReporteOperador(desde, hasta);
   const porPos = usePorPos(desde, hasta);
   const porJuego = usePorJuego(desde, hasta);
@@ -62,7 +64,7 @@ export function ReportesSummaryStrip({ desde, hasta }: Props) {
         color="text-negative"
       />
       <Cell label="Top Tienda" value={topTienda ? topTienda.pos : "—"} />
-      <Cell label="Top Juego" value={topJuego ? topJuego.nombre : "—"} />
+      {!scoped && <Cell label="Top Juego" value={topJuego ? topJuego.nombre : "—"} />}
       <Cell
         label="Terminales activas"
         value={online.data ? `${online.data.online} / ${online.data.total}` : "—"}
