@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { enviarCorreoOtp } from "@/lib/emailjs";
+import { enviarCorreoOtp } from "@/lib/email";
 import { ROLES, type CurrentUser, type Rol } from "./types";
 
 const SESSION_KEY = "terminalos_v2_session";

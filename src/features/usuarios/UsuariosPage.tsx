@@ -11,7 +11,7 @@ import { ROL_LABEL, type Rol } from "@/auth/types";
 import { useVisibleAgencias } from "@/auth/useVisibleAgencias";
 import { useVisibleEmpresas } from "@/auth/useVisibleEmpresas";
 import { useResponsivePageSize } from "@/hooks/useResponsivePageSize";
-import { enviarCorreoBienvenida, enviarCorreoWam } from "@/lib/emailjs";
+import { enviarCorreoBienvenida, enviarCorreoWam } from "@/lib/email";
 import { generatePassword } from "@/utils/credentials";
 import { localNumberFromPos, localNumberValue } from "@/utils/agencia";
 import { cn } from "@/utils/cn";

@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase/client";
 import { estadoParaSupa } from "@/lib/supabase/estadoMapping";
 import { estadoFechaPatch } from "../estadoFechas";
 import { sortableToFechaInicio, sortableToIso } from "@/utils/fecha";
-import { enviarCorreoBienvenida } from "@/lib/emailjs";
+import { enviarCorreoBienvenida } from "@/lib/email";
 import { useAuth } from "@/auth/AuthContext";
 import { updateTerminalesConHistorial } from "@/lib/supabase/terminalHistorial";
 import type { AgenciaEstado } from "@/lib/supabase/types";

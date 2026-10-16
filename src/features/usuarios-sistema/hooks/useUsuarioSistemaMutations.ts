@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase/client";
-import { enviarCorreoBienvenida } from "@/lib/emailjs";
+import { enviarCorreoBienvenida } from "@/lib/email";
 import type { Rol } from "@/auth/types";
 
 function useInvalidateUsuariosSistema() {
