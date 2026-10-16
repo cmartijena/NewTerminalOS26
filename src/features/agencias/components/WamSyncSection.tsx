@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input, Label, Select } from "@/components/ui/Input";
-import { getWamPosGroups, sugerirNombreGrupoNuevo, sugerirPosGroup } from "@/lib/wamApi/wamWrite";
+import { getWamPosGroups, sugerirNombreGrupoNuevo, sugerirNombrePosWam, sugerirPosGroup } from "@/lib/wamApi/wamWrite";
 
 export interface WamSyncState {
   enabled: boolean;
@@ -10,9 +10,19 @@ export interface WamSyncState {
   nombreNuevo: string;
   // Once the user touches the selector, stop overwriting it with the automatic suggestion.
   touched: boolean;
+  // Name the POS gets in WAM (can differ from ours: WAM adds a "NN" sub-group to the sucursal).
+  posName: string;
+  posTouched: boolean;
 }
 
-export const WAM_SYNC_INICIAL: WamSyncState = { enabled: true, grupo: "", nombreNuevo: "", touched: false };
+export const WAM_SYNC_INICIAL: WamSyncState = {
+  enabled: true,
+  grupo: "",
+  nombreNuevo: "",
+  touched: false,
+  posName: "",
+  posTouched: false,
+};
 
 interface Props {
   open: boolean;
@@ -21,6 +31,9 @@ interface Props {
   // nombre of the OTHER agencias of the same empresa + sucursal — used to find the group
   // they already live in.
   siblingNombres: string[];
+  // Our own POS name and the agencia's nombre — fallback / building blocks for the WAM name.
+  posTerminalOS: string;
+  nombre: string;
   value: WamSyncState;
   onChange: (next: WamSyncState) => void;
 }
@@ -28,7 +41,16 @@ interface Props {
 // Create-mode only. Mirrors a new agencia into WAM (real production): its Point of Sale,
 // placed in a POS Group. The group is suggested from sibling agencias but always confirmed
 // by the user here, because WAM names don't match ours exactly.
-export function WamSyncSection({ open, empresaNombre, departamento, siblingNombres, value, onChange }: Props) {
+export function WamSyncSection({
+  open,
+  empresaNombre,
+  departamento,
+  siblingNombres,
+  posTerminalOS,
+  nombre,
+  value,
+  onChange,
+}: Props) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["wam", "pos-groups"],
     queryFn: getWamPosGroups,
@@ -49,6 +71,15 @@ export function WamSyncSection({ open, empresaNombre, departamento, siblingNombr
     // siblingNombres is tracked through siblingKey (a fresh array each render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, value.touched, empresaNombre, departamento, siblingKey]);
+
+  // WAM's POS name follows the chosen group's existing POS (see sugerirNombrePosWam).
+  useEffect(() => {
+    if (!data || value.posTouched) return;
+    const g = grupos.find((x) => x.id === value.grupo) ?? null;
+    const posName = sugerirNombrePosWam(g, empresaNombre, departamento, posTerminalOS, nombre);
+    if (posName !== value.posName) onChange({ ...value, posName });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, value.grupo, value.posTouched, empresaNombre, departamento, posTerminalOS, nombre]);
 
   const sugeridoId = useMemo(() => sugerirPosGroup(grupos, siblingNombres)?.id, [grupos, siblingNombres]);
 
@@ -110,6 +141,18 @@ export function WamSyncSection({ open, empresaNombre, departamento, siblingNombr
               )}
             </>
           )}
+          <div>
+            <Label htmlFor="wam-pos-name">Nombre del POS en WAM</Label>
+            <Input
+              id="wam-pos-name"
+              value={value.posName}
+              onChange={(e) => onChange({ ...value, posName: e.target.value, posTouched: true })}
+              className="w-full !rounded-lg font-mono"
+            />
+            <p className="mt-1 text-[11px] text-t3">
+              Sugerido según los POS del grupo (ej. «TINBET LAMBAYEQUE 01 - AG03- NOMBRE»). Revísalo antes de guardar.
+            </p>
+          </div>
         </div>
       )}
     </div>

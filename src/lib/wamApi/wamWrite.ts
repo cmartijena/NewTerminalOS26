@@ -71,6 +71,43 @@ export function sugerirNombreGrupoNuevo(grupos: WamPosGroup[], empresaNombre: st
   return `${prefijo}-${dep}-${siguiente}`;
 }
 
+// WAM names its POS "EMPRESA SUCURSAL NN - AGxx- LOCAL" where NN is a WAM-side sub-group of
+// the sucursal ("TINBET LAMBAYEQUE 01 - AG01-…") that TerminalOS doesn't track, and the AG
+// counter restarts inside each of those. So the WAM name is derived from the POS already in
+// the chosen group: reuse their "EMPRESA SUCURSAL NN" prefix and continue their AG numbering.
+// Falls back to our own POS name when the group has no usable sibling. Only a suggestion.
+export function sugerirNombrePosWam(
+  grupo: WamPosGroup | null,
+  empresaNombre: string,
+  departamento: string,
+  posTerminalOS: string,
+  nombre: string,
+): string {
+  const base = norm(`${empresaNombre}${departamento}`);
+  // prefix -> how many POS use it and their highest AG; the most used prefix wins (a POS
+  // that was once named without the "NN" must not outvote the established ones).
+  const prefijos = new Map<string, { n: number; maxAg: number }>();
+  for (const parte of (grupo?.pos_texto ?? "").replace(/^\[|\]$/g, "").split(/,\s*/)) {
+    const m = /^(.+?)\s*-\s*AG(\d+)/i.exec(parte.trim());
+    if (!m || !norm(m[1]).startsWith(base)) continue;
+    const p = m[1].trim();
+    const prev = prefijos.get(p) ?? { n: 0, maxAg: 0 };
+    prefijos.set(p, { n: prev.n + 1, maxAg: Math.max(prev.maxAg, Number(m[2])) });
+  }
+  let prefijo = "";
+  let maxAg = 0;
+  let mejorN = 0;
+  for (const [p, v] of prefijos) {
+    if (v.n > mejorN) {
+      prefijo = p;
+      maxAg = v.maxAg;
+      mejorN = v.n;
+    }
+  }
+  if (!prefijo || !nombre.trim()) return posTerminalOS;
+  return `${prefijo} - AG${String(maxAg + 1).padStart(2, "0")}- ${nombre.trim()}`;
+}
+
 export type WamGrupoElegido = { tipo: "existente"; id: string } | { tipo: "nuevo"; nombre: string };
 
 export interface SincronizarAgenciaWamInput {

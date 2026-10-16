@@ -514,12 +514,13 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
           : wamSync.grupo
             ? ({ tipo: "existente", id: wamSync.grupo } as const)
             : null;
-      if (!grupo || (grupo.tipo === "nuevo" && !grupo.nombre) || !values.pos.trim()) {
+      const posWam = wamSync.posName.trim() || values.pos.trim();
+      if (!grupo || (grupo.tipo === "nuevo" && !grupo.nombre) || !posWam) {
         window.alert("La agencia se creó, pero NO se creó en WAM: falta el POS Group o el nombre POS.");
       } else {
         setWamSyncing(true);
         const machineIds = (terminales ?? []).filter((t) => selectedTerminalIds.has(t.id)).map((t) => t.codigo);
-        const res = await sincronizarAgenciaEnWam({ posName: values.pos.trim(), grupo, machineIds });
+        const res = await sincronizarAgenciaEnWam({ posName: posWam, grupo, machineIds });
         setWamSyncing(false);
         if (!res.ok) {
           window.alert(
@@ -1049,6 +1050,8 @@ export function AgenciaFormDialog({ agencia, trigger }: Props) {
                   siblingNombres={(allAgencias ?? [])
                     .filter((a) => a.empresa_id === form.empresa_id && (a.departamento ?? "") === form.departamento)
                     .map((a) => a.nombre)}
+                  posTerminalOS={form.pos}
+                  nombre={form.nombre}
                   value={wamSync}
                   onChange={setWamSync}
                 />
